@@ -40,6 +40,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (error.message === 'Order not found or access denied') {
       return NextResponse.json({ error: 'Not Found or Forbidden' }, { status: 404 })
     }
+    if (error.message === 'New order total cannot be less than the amount already paid') {
+      return NextResponse.json({ error: error.message }, { status: 422 })
+    }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }
@@ -56,6 +59,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
     if (error.message === 'Order not found or access denied') {
       return NextResponse.json({ error: 'Not Found or Forbidden' }, { status: 404 })
+    }
+    if (error.message === 'Cannot delete an order that has recorded payments') {
+      return NextResponse.json({ error: error.message }, { status: 422 })
     }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }

@@ -57,19 +57,28 @@ export async function updateOrder(userId: string, orderId: string, input: Update
   return await db.$transaction(async (tx) => {
     // 1. Verify ownership securely inside the transaction
     const existingOrder = await tx.order.findUnique({
-      where: { id: orderId, userId }
+      where: { id: orderId, userId },
+      include: { payments: true }
     })
 
     if (!existingOrder) {
       throw new Error('Order not found or access denied')
     }
 
-    // 2. Delete existing items
+    // 2. Business logic check: cannot reduce order total below what is already paid
+    const { orderTotal: newTotal } = calculateOrderTotals(input.items)
+    const amountPaid = existingOrder.payments.reduce((sum, p) => sum + p.amount, 0)
+    
+    if (newTotal < amountPaid) {
+      throw new Error('New order total cannot be less than the amount already paid')
+    }
+
+    // 3. Delete existing items
     await tx.orderItem.deleteMany({
       where: { orderId }
     })
 
-    // 3. Update order and create new items
+    // 4. Update order and create new items
     const updatedOrder = await tx.order.update({
       where: { id: orderId },
       data: {
@@ -83,7 +92,7 @@ export async function updateOrder(userId: string, orderId: string, input: Update
           })),
         },
       },
-      include: { items: true },
+      include: { items: true, payments: true },
     })
 
     const { subtotal, orderTotal } = calculateOrderTotals(updatedOrder.items)
@@ -94,11 +103,16 @@ export async function updateOrder(userId: string, orderId: string, input: Update
 export async function deleteOrder(userId: string, orderId: string) {
   // Prisma checks both criteria, deleting safely
   const existingOrder = await db.order.findUnique({
-    where: { id: orderId, userId }
+    where: { id: orderId, userId },
+    include: { payments: true }
   })
 
   if (!existingOrder) {
     throw new Error('Order not found or access denied')
+  }
+
+  if (existingOrder.payments.length > 0) {
+    throw new Error('Cannot delete an order that has recorded payments')
   }
 
   await db.order.delete({

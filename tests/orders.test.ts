@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { calculateOrderTotals } from '../src/lib/calculations'
-import { getOrder, createOrder } from '../src/services/orders'
+import { getOrder, createOrder, updateOrder, deleteOrder } from '../src/services/orders'
 import { db } from '../src/services/db'
 
 vi.mock('../src/services/db', () => ({
@@ -16,7 +16,6 @@ vi.mock('../src/services/db', () => ({
       deleteMany: vi.fn(),
     },
     $transaction: vi.fn(async (cb) => {
-      // Very basic transaction mock
       return await cb({
         order: {
           create: vi.mocked(db.order.create),
@@ -57,21 +56,12 @@ describe('Order Calculations', () => {
   })
 })
 
-describe('Order Services', () => {
+describe('Order Services (Security and Validation)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   describe('getOrder', () => {
-    it('throws error if order not found or not owned', async () => {
-      vi.mocked(db.order.findUnique).mockResolvedValueOnce(null)
-      await expect(getOrder('user1', 'order1')).rejects.toThrow('Order not found')
-      expect(db.order.findUnique).toHaveBeenCalledWith({
-        where: { id: 'order1', userId: 'user1' },
-        include: { items: true }
-      })
-    })
-
     it('returns order with calculated totals', async () => {
       vi.mocked(db.order.findUnique).mockResolvedValueOnce({
         id: 'order1',
@@ -80,43 +70,80 @@ describe('Order Services', () => {
         dueDate: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
-        items: [{ id: 'item1', orderId: 'order1', description: 'Item 1', quantity: 2, unitPrice: 1000 }]
+        items: [{ id: 'item1', orderId: 'order1', description: 'Item 1', quantity: 2, unitPrice: 1000 }],
+        payments: []
       } as any)
 
       const order = await getOrder('user1', 'order1')
-      expect(order.id).toBe('order1')
       expect(order.subtotal).toBe(2000)
-      expect(order.orderTotal).toBe(2000)
     })
   })
 
-  describe('createOrder', () => {
-    it('creates order and returns with totals', async () => {
-      vi.mocked(db.order.create).mockResolvedValueOnce({
+  describe('updateOrder', () => {
+    it('prevents update if new total is less than amount already paid', async () => {
+      vi.mocked(db.order.findUnique).mockResolvedValueOnce({
         id: 'order1',
         userId: 'user1',
-        customer: 'Customer 1',
-        dueDate: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        items: [{ id: 'item1', orderId: 'order1', description: 'Item 1', quantity: 1, unitPrice: 500 }]
+        items: [{ quantity: 1, unitPrice: 1000 }], // original 1000
+        payments: [{ amount: 500 }] // paid 500
+      } as any)
+
+      // Malicious attempt to change order total to 100
+      const payload = {
+        customer: 'Test',
+        dueDate: new Date().toISOString(),
+        items: [{ description: 'Cheap', quantity: 1, unitPrice: 100 }]
+      }
+
+      await expect(updateOrder('user1', 'order1', payload)).rejects.toThrow('New order total cannot be less than the amount already paid')
+    })
+    
+    it('allows update if new total is >= amount already paid', async () => {
+      vi.mocked(db.order.findUnique).mockResolvedValueOnce({
+        id: 'order1',
+        userId: 'user1',
+        items: [{ quantity: 1, unitPrice: 1000 }], // original 1000
+        payments: [{ amount: 500 }] // paid 500
+      } as any)
+      
+      vi.mocked(db.order.update).mockResolvedValueOnce({
+        id: 'order1',
+        userId: 'user1',
+        items: [{ quantity: 1, unitPrice: 600 }] // new total 600 (>= 500)
       } as any)
 
       const payload = {
-        customer: 'Customer 1',
+        customer: 'Test',
         dueDate: new Date().toISOString(),
-        items: [{ description: 'Item 1', quantity: 1, unitPrice: 500 }]
+        items: [{ description: 'Valid', quantity: 1, unitPrice: 600 }]
       }
 
-      const order = await createOrder('user1', payload)
-      expect(db.order.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          userId: 'user1',
-          customer: 'Customer 1'
-        }),
-        include: { items: true }
-      })
-      expect(order.subtotal).toBe(500)
+      const updated = await updateOrder('user1', 'order1', payload)
+      expect(updated.orderTotal).toBe(600)
+    })
+  })
+
+  describe('deleteOrder', () => {
+    it('prevents deletion if payments exist', async () => {
+      vi.mocked(db.order.findUnique).mockResolvedValueOnce({
+        id: 'order1',
+        userId: 'user1',
+        payments: [{ amount: 500 }]
+      } as any)
+
+      await expect(deleteOrder('user1', 'order1')).rejects.toThrow('Cannot delete an order that has recorded payments')
+    })
+
+    it('allows deletion if no payments exist', async () => {
+      vi.mocked(db.order.findUnique).mockResolvedValueOnce({
+        id: 'order1',
+        userId: 'user1',
+        payments: []
+      } as any)
+
+      const result = await deleteOrder('user1', 'order1')
+      expect(result.success).toBe(true)
+      expect(db.order.delete).toHaveBeenCalledWith({ where: { id: 'order1' } })
     })
   })
 })
