@@ -1,17 +1,22 @@
-// import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../generated/prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+import pg from 'pg'
 
-// const prismaClientSingleton = () => {
-//   return new PrismaClient()
-// }
+const connectionString = process.env.DATABASE_URL
 
-// declare const globalThis: {
-//   prismaGlobal: ReturnType<typeof prismaClientSingleton>;
-// } & typeof global;
+const pool = new pg.Pool({ connectionString })
+const adapter = new PrismaPg(pool)
 
-// const prisma = globalThis.prismaGlobal ?? prismaClientSingleton()
+const prismaClientSingleton = () => {
+  return new PrismaClient({ adapter })
+}
 
-// export default prisma
+declare const globalThis: {
+  prismaGlobal: ReturnType<typeof prismaClientSingleton>;
+} & typeof global;
 
-// if (process.env.NODE_ENV !== 'production') globalThis.prismaGlobal = prisma
+const prisma = globalThis.prismaGlobal ?? prismaClientSingleton()
 
-// Note: Prisma Client will be generated and uncommented in Phase 1 after adding models to schema.prisma
+export default prisma
+
+if (process.env.NODE_ENV !== 'production') globalThis.prismaGlobal = prisma
