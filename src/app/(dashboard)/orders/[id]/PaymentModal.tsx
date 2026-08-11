@@ -126,7 +126,12 @@ export function PaymentModal({ orderId, amountDue }: { orderId: string, amountDu
             <div className="pt-4 flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Saving...' : 'Save Payment'}
+                {form.formState.isSubmitting ? (
+                  <>
+                    <span className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                    Saving...
+                  </>
+                ) : 'Save Payment'}
               </Button>
             </div>
           </form>

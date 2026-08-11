@@ -5,8 +5,10 @@ import { calculateAmountPaid, calculateAmountDue, calculateOrderStatus } from '@
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { PaymentModal } from './PaymentModal'
+import { InboxIcon, ChevronLeft } from 'lucide-react'
+import Link from 'next/link'
 
 export default async function OrderDetailsPage(props: { params: Promise<{ id: string }> }) {
   const user = await requireAuth()
@@ -28,106 +30,122 @@ export default async function OrderDetailsPage(props: { params: Promise<{ id: st
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center text-sm text-gray-500 hover:text-gray-900 transition-colors w-fit">
+        <ChevronLeft className="w-4 h-4 mr-1" />
+        <Link href="/orders">Back to Orders</Link>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Order {order.id.slice(-8)}</h2>
-          <p className="text-gray-500">Customer: {order.customer}</p>
+          <div className="flex items-center gap-3 mb-1">
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900">Order {order.id.slice(-8)}</h2>
+            <StatusBadge status={status} />
+          </div>
+          <p className="text-gray-500 font-medium">{order.customer}</p>
         </div>
         <div className="flex gap-4 items-center">
-          <Badge variant="outline" className="text-sm px-4 py-1">{status.toUpperCase()}</Badge>
           {!isPaid && <PaymentModal orderId={order.id} amountDue={amountDue} />}
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        <Card className="shadow-sm border-gray-100">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Order Total</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-500">Order Total</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(order.orderTotal)}</div>
+            <div className="text-2xl font-bold tabular-nums text-gray-900">{formatCurrency(order.orderTotal)}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="shadow-sm border-gray-100">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Amount Paid</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-500">Amount Paid</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(amountPaid)}</div>
+            <div className="text-2xl font-bold tabular-nums text-emerald-600">{formatCurrency(amountPaid)}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="shadow-sm border-gray-100">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Amount Due</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-500">Amount Due</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(amountDue)}</div>
-            <p className="text-xs text-gray-500 mt-1">Due: {formatDate(order.dueDate)}</p>
+            <div className="text-2xl font-bold tabular-nums text-rose-600">{formatCurrency(amountDue)}</div>
+            <p className="text-xs text-gray-400 mt-1">Due: {formatDate(order.dueDate)}</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="shadow-sm border-gray-100 overflow-hidden">
+        <CardHeader className="bg-gray-50/50 border-b">
           <CardTitle>Line Items</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Quantity</TableHead>
-                <TableHead className="text-right">Unit Price</TableHead>
-                <TableHead className="text-right">Line Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {order.items?.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.description}</TableCell>
-                  <TableCell className="text-right">{item.quantity}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(item.quantity * item.unitPrice)}
-                  </TableCell>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-semibold text-gray-900">Description</TableHead>
+                  <TableHead className="text-right font-semibold text-gray-900">Quantity</TableHead>
+                  <TableHead className="text-right font-semibold text-gray-900">Unit Price</TableHead>
+                  <TableHead className="text-right font-semibold text-gray-900">Line Total</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {order.items?.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium text-gray-900">{item.description}</TableCell>
+                    <TableCell className="text-right text-gray-600">{item.quantity}</TableCell>
+                    <TableCell className="text-right tabular-nums text-gray-600">{formatCurrency(item.unitPrice)}</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums text-gray-900">
+                      {formatCurrency(item.quantity * item.unitPrice)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="shadow-sm border-gray-100 overflow-hidden">
+        <CardHeader className="bg-gray-50/50 border-b">
           <CardTitle>Payment History</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Note</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(!order.payments || order.payments.length === 0) ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center py-4 text-gray-500">
-                    No payments recorded yet.
-                  </TableCell>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-semibold text-gray-900">Date</TableHead>
+                  <TableHead className="font-semibold text-gray-900 text-right">Amount</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Note</TableHead>
                 </TableRow>
-              ) : (
-                order.payments.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell>{formatDate(payment.paymentDate)}</TableCell>
-                    <TableCell className="font-medium text-green-600">{formatCurrency(payment.amount)}</TableCell>
-                    <TableCell>{payment.note || '-'}</TableCell>
+              </TableHeader>
+              <TableBody>
+                {(!order.payments || order.payments.length === 0) ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="h-48 text-center">
+                      <div className="flex flex-col items-center justify-center text-gray-500 space-y-3">
+                        <div className="bg-gray-100 p-3 rounded-full">
+                          <InboxIcon className="w-5 h-5 text-gray-400" />
+                        </div>
+                        <p className="text-sm font-medium">No payments recorded yet.</p>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  order.payments.map((payment) => (
+                    <TableRow key={payment.id}>
+                      <TableCell className="text-gray-600">{formatDate(payment.paymentDate)}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-emerald-600">{formatCurrency(payment.amount)}</TableCell>
+                      <TableCell className="text-gray-600">{payment.note || '-'}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

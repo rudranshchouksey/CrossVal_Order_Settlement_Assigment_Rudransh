@@ -57,8 +57,12 @@ export default function NewOrderPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex items-center text-sm text-gray-500 hover:text-gray-900 transition-colors w-fit -mb-2">
+        <span className="mr-1">←</span>
+        <span className="cursor-pointer" onClick={() => router.back()}>Back</span>
+      </div>
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Create Order</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-gray-900">Create Order</h2>
       </div>
 
       <Form {...form}>
@@ -172,7 +176,12 @@ export default function NewOrderPage() {
           <div className="flex justify-end gap-4">
             <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
             <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Saving...' : 'Create Order'}
+              {form.formState.isSubmitting ? (
+                <>
+                  <span className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                  Saving...
+                </>
+              ) : 'Create Order'}
             </Button>
           </div>
         </form>
