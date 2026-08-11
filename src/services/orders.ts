@@ -5,7 +5,7 @@ import { calculateOrderTotals } from '../lib/calculations'
 export async function listOrders(userId: string) {
   const orders = await db.order.findMany({
     where: { userId },
-    include: { items: true },
+    include: { items: true, payments: true },
     orderBy: { createdAt: 'desc' },
   })
   
@@ -18,7 +18,7 @@ export async function listOrders(userId: string) {
 export async function getOrder(userId: string, orderId: string) {
   const order = await db.order.findUnique({
     where: { id: orderId, userId },
-    include: { items: true },
+    include: { items: true, payments: true },
   })
 
   if (!order) {
