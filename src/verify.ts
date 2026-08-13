@@ -33,6 +33,18 @@ Paid (cents): ${totalPayments}
 Status: ${actualStatus}
 `)
   }
+
+  const otherUser = await prisma.user.findUnique({ where: { email: 'other@example.com' } })
+  if (!otherUser) {
+    throw new Error('Other user not found')
+  }
+
+  const otherOrders = await listOrders(otherUser.id)
+  console.log(`---`)
+  console.log(`Other User Orders: ${otherOrders.length}`)
+  for (const o of otherOrders) {
+    console.log(`Order: ${o.customer}, Items: ${o.items.length}, Total (cents): ${o.orderTotal}`)
+  }
 }
 
 main()

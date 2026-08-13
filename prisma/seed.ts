@@ -5,10 +5,14 @@ import bcrypt from 'bcryptjs'
 async function main() {
   const email = 'demo@example.com'
   const plainPassword = 'Demo@123456'
+  
+  const otherEmail = 'other@example.com'
+  const otherPlainPassword = 'Other@123456'
 
   // Hash password exactly as the application does
   const salt = await bcrypt.genSalt(10)
   const password = await bcrypt.hash(plainPassword, salt)
+  const otherPassword = await bcrypt.hash(otherPlainPassword, salt)
 
   // 1. Upsert demo user
   const user = await prisma.user.upsert({
@@ -177,8 +181,35 @@ async function main() {
     },
   })
 
+  // 4. Create second user and their order for authorization testing
+  const otherUser = await prisma.user.upsert({
+    where: { email: otherEmail },
+    update: { password: otherPassword },
+    create: { email: otherEmail, password: otherPassword },
+  })
+
+  // Clean existing demo data for the second user to ensure idempotency
+  await prisma.order.deleteMany({
+    where: { userId: otherUser.id },
+  })
+
+  // ORDER 7 — PRIVATE (Authorization testing)
+  await prisma.order.create({
+    data: {
+      userId: otherUser.id,
+      customer: 'Private Client',
+      dueDate: addDays(10),
+      items: {
+        create: [
+          { description: 'Confidential Service', quantity: 1, unitPrice: 999900 },
+        ],
+      },
+    },
+  })
+
   console.log('✅ Seed completed successfully!')
   console.log(`Demo user: ${email} / ${plainPassword}`)
+  console.log(`Other user: ${otherEmail} / ${otherPlainPassword}`)
 }
 
 main()
