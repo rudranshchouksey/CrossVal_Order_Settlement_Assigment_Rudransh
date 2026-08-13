@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { PaymentSchema, CreatePaymentInput } from '@/schemas/payments'
@@ -24,8 +25,6 @@ interface PaymentModalProps {
 export function PaymentModal({ orderId, amountDue, orderTotal, amountPaidSoFar, variant = 'default' }: PaymentModalProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [error, setError] = useState('')
-  const [details, setDetails] = useState<any>(null)
 
   const form = useForm<CreatePaymentInput>({
     resolver: zodResolver(PaymentSchema),
@@ -37,8 +36,6 @@ export function PaymentModal({ orderId, amountDue, orderTotal, amountPaidSoFar, 
   })
 
   async function onSubmit(values: CreatePaymentInput) {
-    setError('')
-    setDetails(null)
     try {
       const res = await fetch(`/api/orders/${orderId}/payments`, {
         method: 'POST',
@@ -48,16 +45,19 @@ export function PaymentModal({ orderId, amountDue, orderTotal, amountPaidSoFar, 
       const data = await res.json()
       if (!res.ok) {
         if (data.error && data.error.details) {
-          setDetails(data.error.details)
-          throw new Error(data.error.message || 'Payment failed')
+          toast.error(data.error.message || 'Payment failed', {
+            description: `Requested: ${formatCurrency(data.error.details.requested)} | Maximum allowed: ${formatCurrency(data.error.details.remaining)}`
+          })
+          return
         }
         throw new Error(data.error || 'Payment failed')
       }
+      toast.success('Payment recorded successfully')
       setOpen(false)
       form.reset()
       router.refresh()
     } catch (err: any) {
-      setError(err.message)
+      toast.error(err.message)
     }
   }
 
@@ -143,18 +143,6 @@ export function PaymentModal({ orderId, amountDue, orderTotal, amountPaidSoFar, 
                 </FormItem>
               )}
             />
-
-            {error && (
-              <div className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
-                <p className="font-medium">{error}</p>
-                {details && (
-                  <div className="mt-1 text-xs">
-                    <p>Requested: {formatCurrency(details.requested)}</p>
-                    <p>Maximum allowed: {formatCurrency(details.remaining)}</p>
-                  </div>
-                )}
-              </div>
-            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

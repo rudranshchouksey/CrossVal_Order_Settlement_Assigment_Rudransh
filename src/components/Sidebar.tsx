@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { LayoutDashboard, ReceiptText, LogOut, Menu, X, Landmark } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -13,7 +14,23 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  const handleLogout = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoggingOut(true)
+    try {
+      const res = await fetch('/api/auth/logout', { method: 'POST' })
+      if (!res.ok) throw new Error('Logout failed')
+      toast.success('Logged out successfully')
+      router.push('/login')
+    } catch (err: any) {
+      toast.error(err.message)
+      setIsLoggingOut(false)
+    }
+  }
 
   return (
     <>
@@ -81,13 +98,14 @@ export function Sidebar() {
 
         {/* User + Logout */}
         <div className="border-t px-3 py-3">
-          <form action="/api/auth/logout" method="POST">
+          <form onSubmit={handleLogout}>
             <button
               type="submit"
-              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive"
+              disabled={isLoggingOut}
+              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive disabled:opacity-50"
             >
               <LogOut className="h-4 w-4 shrink-0" />
-              Sign out
+              {isLoggingOut ? 'Signing out...' : 'Sign out'}
             </button>
           </form>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -14,7 +15,6 @@ import Link from 'next/link'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
   const form = useForm<z.infer<typeof LoginSchema>>({
@@ -23,7 +23,6 @@ export default function LoginPage() {
   })
 
   async function onSubmit(values: z.infer<typeof LoginSchema>) {
-    setError('')
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -34,10 +33,11 @@ export default function LoginPage() {
       if (!res.ok) {
         throw new Error(data.error || 'Authentication failed')
       }
+      toast.success('Signed in successfully')
       router.push('/dashboard')
       router.refresh()
     } catch (err: any) {
-      setError(err.message)
+      toast.error(err.message)
     }
   }
 
@@ -139,12 +139,6 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-
-              {error && (
-                <div className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
-                  {error}
-                </div>
-              )}
 
               <Button type="submit" className="w-full" size="lg" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? (

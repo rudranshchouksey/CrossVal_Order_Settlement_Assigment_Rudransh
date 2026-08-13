@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CreateOrderSchema, CreateOrderInput } from '@/schemas/orders'
@@ -14,7 +15,6 @@ import Link from 'next/link'
 
 export default function NewOrderPage() {
   const router = useRouter()
-  const [error, setError] = useState('')
 
   const form = useForm<CreateOrderInput>({
     resolver: zodResolver(CreateOrderSchema),
@@ -34,7 +34,6 @@ export default function NewOrderPage() {
   const liveTotal = watchItems.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)), 0)
 
   async function onSubmit(values: CreateOrderInput) {
-    setError('')
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -45,10 +44,11 @@ export default function NewOrderPage() {
       if (!res.ok) {
         throw new Error(data.error || 'Failed to create order')
       }
+      toast.success('Order created successfully')
       router.push(`/orders/${data.id}`)
       router.refresh()
     } catch (err: any) {
-      setError(err.message)
+      toast.error(err.message)
     }
   }
 
@@ -192,12 +192,6 @@ export default function NewOrderPage() {
               </div>
             </div>
           </div>
-
-          {error && (
-            <div className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
-              {error}
-            </div>
-          )}
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>

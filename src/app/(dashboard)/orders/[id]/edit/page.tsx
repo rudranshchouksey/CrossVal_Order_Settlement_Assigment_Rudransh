@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { toast } from 'sonner'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { UpdateOrderSchema, CreateOrderInput } from '@/schemas/orders'
@@ -16,7 +17,6 @@ export default function EditOrderPage() {
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const orderId = params.id
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [customerName, setCustomerName] = useState('')
 
@@ -54,7 +54,7 @@ export default function EditOrderPage() {
           })),
         })
       } catch (err: any) {
-        setError(err.message)
+        toast.error(err.message)
       } finally {
         setLoading(false)
       }
@@ -63,7 +63,6 @@ export default function EditOrderPage() {
   }, [orderId, form])
 
   async function onSubmit(values: CreateOrderInput) {
-    setError('')
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         method: 'PUT',
@@ -74,10 +73,11 @@ export default function EditOrderPage() {
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update order')
       }
+      toast.success('Order updated successfully')
       router.push(`/orders/${orderId}`)
       router.refresh()
     } catch (err: any) {
-      setError(err.message)
+      toast.error(err.message)
     }
   }
 
@@ -225,12 +225,6 @@ export default function EditOrderPage() {
               </div>
             </div>
           </div>
-
-          {error && (
-            <div className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
-              {error}
-            </div>
-          )}
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>

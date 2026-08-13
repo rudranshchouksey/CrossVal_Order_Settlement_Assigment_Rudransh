@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Trash2 } from 'lucide-react'
 
@@ -9,21 +10,20 @@ export function DeleteOrderButton({ orderId }: { orderId: string }) {
   const router = useRouter()
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [error, setError] = useState('')
 
   async function handleDelete() {
     setDeleting(true)
-    setError('')
     try {
       const res = await fetch(`/api/orders/${orderId}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Failed to delete order')
       }
+      toast.success('Order deleted successfully')
       router.push('/orders')
       router.refresh()
     } catch (err: any) {
-      setError(err.message)
+      toast.error(err.message)
       setDeleting(false)
       setConfirming(false)
     }
@@ -32,7 +32,6 @@ export function DeleteOrderButton({ orderId }: { orderId: string }) {
   if (confirming) {
     return (
       <div className="flex items-center gap-1.5">
-        {error && <span className="text-xs text-destructive mr-1">{error}</span>}
         <Button variant="outline" size="sm" onClick={() => setConfirming(false)} disabled={deleting}>
           Cancel
         </Button>
