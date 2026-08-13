@@ -5,34 +5,43 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { LoginSchema } from '@/schemas/auth'
+import { RegisterSchema } from '@/schemas/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Eye, EyeOff, Landmark, BarChart3, Shield, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 
-export default function LoginPage() {
+const RegisterFormSchema = RegisterSchema.extend({
+  confirmPassword: z.string().min(1, 'Please confirm your password'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+})
+
+type RegisterFormInput = z.infer<typeof RegisterFormSchema>
+
+export default function RegisterPage() {
   const router = useRouter()
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
-  const form = useForm<z.infer<typeof LoginSchema>>({
-    resolver: zodResolver(LoginSchema),
-    defaultValues: { email: '', password: '' },
+  const form = useForm<RegisterFormInput>({
+    resolver: zodResolver(RegisterFormSchema),
+    defaultValues: { email: '', password: '', confirmPassword: '' },
   })
 
-  async function onSubmit(values: z.infer<typeof LoginSchema>) {
+  async function onSubmit(values: RegisterFormInput) {
     setError('')
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ email: values.email, password: values.password }),
       })
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed')
+        throw new Error(data.error || 'Registration failed')
       }
       router.push('/dashboard')
       router.refresh()
@@ -57,10 +66,10 @@ export default function LoginPage() {
         </div>
         <div className="space-y-4">
           <h2 className="text-3xl font-semibold tracking-tight leading-tight">
-            Stay ahead of<br />every payment.
+            Track orders and<br />payments in one place.
           </h2>
           <p className="text-sm text-primary-foreground/60 max-w-sm leading-relaxed">
-            Track orders, monitor collections, and keep your cash flow visible — all in one place.
+            Get started in seconds. Create your workspace and start managing financial operations right away.
           </p>
           <div className="mt-8 space-y-3">
             {highlights.map(({ icon: Icon, text }) => (
@@ -81,15 +90,14 @@ export default function LoginPage() {
       {/* Right form panel */}
       <div className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm space-y-6">
-          {/* Mobile logo */}
           <div className="flex items-center gap-2 text-sm font-semibold lg:hidden">
             <Landmark className="h-4 w-4" />
             Settlements
           </div>
 
           <div className="space-y-1">
-            <h1 className="text-xl font-semibold tracking-tight">Welcome back</h1>
-            <p className="text-sm text-muted-foreground">Sign in to your workspace.</p>
+            <h1 className="text-xl font-semibold tracking-tight">Create your workspace</h1>
+            <p className="text-sm text-muted-foreground">Start tracking orders and payments in one place.</p>
           </div>
 
           <Form {...form}>
@@ -122,7 +130,7 @@ export default function LoginPage() {
                       <div className="relative">
                         <Input
                           type={showPassword ? 'text' : 'password'}
-                          autoComplete="current-password"
+                          autoComplete="new-password"
                           {...field}
                         />
                         <button
@@ -134,6 +142,24 @@ export default function LoginPage() {
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Must be at least 8 characters.</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm password</FormLabel>
+                    <FormControl>
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -150,19 +176,19 @@ export default function LoginPage() {
                 {form.formState.isSubmitting ? (
                   <>
                     <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Signing in…
+                    Creating account…
                   </>
                 ) : (
-                  'Sign in'
+                  'Create account'
                 )}
               </Button>
             </form>
           </Form>
 
           <p className="text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{' '}
-            <Link href="/register" className="font-medium text-foreground hover:underline">
-              Create one
+            Already have an account?{' '}
+            <Link href="/login" className="font-medium text-foreground hover:underline">
+              Sign in
             </Link>
           </p>
         </div>
