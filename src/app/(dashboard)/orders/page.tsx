@@ -1,13 +1,22 @@
 import Link from 'next/link'
 import { requireAuth } from '@/lib/auth'
 import { listOrders } from '@/services/orders'
-import { calculateAmountPaid, calculateAmountDue, calculateOrderStatus, OrderStatus } from '@/lib/calculations'
+import { calculateAmountPaid, calculateAmountDue, calculateOrderStatus, type OrderStatus } from '@/lib/calculations'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { Button, buttonVariants } from '@/components/ui/button'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
+import { buttonVariants } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { InboxIcon } from 'lucide-react'
+import { PageHeader } from '@/components/PageHeader'
+import { EmptyState } from '@/components/EmptyState'
+import { Plus, ReceiptText } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+const statusFilters: { label: string; value: string | undefined }[] = [
+  { label: 'All', value: undefined },
+  { label: 'Pending', value: 'pending' },
+  { label: 'Partially Paid', value: 'partially_paid' },
+  { label: 'Paid', value: 'paid' },
+  { label: 'Overdue', value: 'overdue' },
+]
 
 export default async function OrdersPage(props: { searchParams: Promise<{ status?: string }> }) {
   const user = await requireAuth()
@@ -16,81 +25,120 @@ export default async function OrdersPage(props: { searchParams: Promise<{ status
 
   const allOrders = await listOrders(user.id)
 
-  const mappedOrders = allOrders.map(order => {
+  const mappedOrders = allOrders.map((order, index) => {
     const amountPaid = calculateAmountPaid(order.payments || [])
     const amountDue = calculateAmountDue(order.orderTotal, amountPaid)
     const status = calculateOrderStatus(order.orderTotal, amountPaid, order.dueDate)
-
-    return { ...order, amountPaid, amountDue, status }
+    // Generate a display-friendly order reference from the tail of the CUID
+    const orderRef = `ORD-${order.id.slice(-4).toUpperCase()}`
+    return { ...order, amountPaid, amountDue, status, orderRef }
   })
 
-  const orders = statusFilter 
+  const orders = statusFilter
     ? mappedOrders.filter(o => o.status === statusFilter)
     : mappedOrders
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900">Orders</h2>
-        <Link href="/orders/new" className={buttonVariants({ variant: 'default' })}>
-          Create Order
-        </Link>
-      </div>
+      <PageHeader
+        title="Orders"
+        subtitle="Manage customer orders, payments, and outstanding balances."
+        actions={
+          <Link href="/orders/new" className={cn(buttonVariants({ variant: 'default', size: 'default' }), 'gap-1.5')}>
+            <Plus className="h-4 w-4" />
+            Create Order
+          </Link>
+        }
+      />
 
-      <div className="flex flex-wrap gap-2 mb-4">
-        <Link href="/orders" className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${!statusFilter ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border shadow-sm'}`}>All</Link>
-        <Link href="/orders?status=pending" className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${statusFilter === 'pending' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border shadow-sm'}`}>Pending</Link>
-        <Link href="/orders?status=partially_paid" className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${statusFilter === 'partially_paid' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border shadow-sm'}`}>Partially Paid</Link>
-        <Link href="/orders?status=paid" className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${statusFilter === 'paid' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border shadow-sm'}`}>Paid</Link>
-        <Link href="/orders?status=overdue" className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${statusFilter === 'overdue' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border shadow-sm'}`}>Overdue</Link>
-      </div>
-
-      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-gray-50/50">
-              <TableRow>
-                <TableHead className="font-semibold text-gray-900">Customer</TableHead>
-                <TableHead className="font-semibold text-gray-900 text-right">Order Total</TableHead>
-                <TableHead className="font-semibold text-gray-900 text-right">Amount Paid</TableHead>
-                <TableHead className="font-semibold text-gray-900 text-right">Amount Due</TableHead>
-                <TableHead className="font-semibold text-gray-900">Due Date</TableHead>
-                <TableHead className="font-semibold text-gray-900">Status</TableHead>
-                <TableHead className="text-right font-semibold text-gray-900">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-64 text-center">
-                    <div className="flex flex-col items-center justify-center text-gray-500 space-y-3">
-                      <div className="bg-gray-100 p-3 rounded-full">
-                        <InboxIcon className="w-6 h-6 text-gray-400" />
-                      </div>
-                      <p className="text-sm font-medium">No orders found.</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                orders.map((order) => (
-                  <TableRow key={order.id} className="hover:bg-gray-50/50">
-                    <TableCell className="font-medium">{order.customer}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatCurrency(order.orderTotal)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-emerald-600 font-medium">{formatCurrency(order.amountPaid)}</TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">{formatCurrency(order.amountDue)}</TableCell>
-                    <TableCell className="text-gray-600">{formatDate(order.dueDate)}</TableCell>
-                    <TableCell><StatusBadge status={order.status} /></TableCell>
-                    <TableCell className="text-right">
-                      <Link href={`/orders/${order.id}`} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-                        View
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))
+      {/* Status filters */}
+      <div className="flex flex-wrap gap-1.5">
+        {statusFilters.map(({ label, value }) => {
+          const isActive = value === statusFilter || (!value && !statusFilter)
+          return (
+            <Link
+              key={label}
+              href={value ? `/orders?status=${value}` : '/orders'}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                isActive
+                  ? 'bg-foreground text-background'
+                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
               )}
-            </TableBody>
-          </Table>
-        </div>
+            >
+              {label}
+            </Link>
+          )
+        })}
+      </div>
+
+      {/* Orders table */}
+      <div className="rounded-lg border bg-card overflow-hidden">
+        {orders.length === 0 ? (
+          <EmptyState
+            icon={<ReceiptText className="h-5 w-5 text-muted-foreground" />}
+            title={statusFilter ? 'No matching orders' : 'No orders yet'}
+            description={
+              statusFilter
+                ? 'Try a different status filter.'
+                : 'Create your first order to start tracking payments.'
+            }
+            action={
+              !statusFilter ? (
+                <Link href="/orders/new" className={cn(buttonVariants({ variant: 'default', size: 'sm' }), 'gap-1.5')}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Create Order
+                </Link>
+              ) : undefined
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30">
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Customer</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground hidden lg:table-cell">Order</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Total</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground hidden sm:table-cell">Paid</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground hidden sm:table-cell">Due</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground hidden md:table-cell">Due Date</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Status</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground"><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order) => (
+                  <tr key={order.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors group">
+                    <td className="px-4 py-3">
+                      <Link href={`/orders/${order.id}`} className="font-medium text-foreground hover:underline">
+                        {order.customer}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell font-mono text-xs">{order.orderRef}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{formatCurrency(order.orderTotal)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-success font-medium hidden sm:table-cell">{formatCurrency(order.amountPaid)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-medium hidden sm:table-cell">
+                      <span className={order.amountDue > 0 ? 'text-destructive' : 'text-muted-foreground'}>
+                        {formatCurrency(order.amountDue)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{formatDate(order.dueDate)}</td>
+                    <td className="px-4 py-3"><StatusBadge status={order.status} /></td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/orders/${order.id}`}
+                        className="text-xs font-medium text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-all"
+                      >
+                        View →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )

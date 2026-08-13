@@ -1,26 +1,30 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CreateOrderSchema, CreateOrderInput } from '@/schemas/orders'
+import { UpdateOrderSchema, CreateOrderInput } from '@/schemas/orders'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { formatCurrency } from '@/lib/utils'
-import { Plus, Trash2, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, ChevronRight, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
-export default function NewOrderPage() {
+export default function EditOrderPage() {
   const router = useRouter()
+  const params = useParams<{ id: string }>()
+  const orderId = params.id
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [customerName, setCustomerName] = useState('')
 
   const form = useForm<CreateOrderInput>({
-    resolver: zodResolver(CreateOrderSchema),
+    resolver: zodResolver(UpdateOrderSchema),
     defaultValues: {
       customer: '',
-      dueDate: new Date().toISOString().substring(0, 10) + 'T00:00:00.000Z',
+      dueDate: '',
       items: [{ description: '', quantity: 1, unitPrice: 0 }]
     },
   })
@@ -33,42 +37,74 @@ export default function NewOrderPage() {
   const watchItems = form.watch("items")
   const liveTotal = watchItems.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)), 0)
 
+  useEffect(() => {
+    async function fetchOrder() {
+      try {
+        const res = await fetch(`/api/orders/${orderId}`)
+        if (!res.ok) throw new Error('Failed to load order')
+        const data = await res.json()
+        setCustomerName(data.customer)
+        form.reset({
+          customer: data.customer,
+          dueDate: new Date(data.dueDate).toISOString(),
+          items: data.items.map((item: any) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+          })),
+        })
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchOrder()
+  }, [orderId, form])
+
   async function onSubmit(values: CreateOrderInput) {
     setError('')
     try {
-      const res = await fetch('/api/orders', {
-        method: 'POST',
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
       })
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to create order')
+        throw new Error(data.error || 'Failed to update order')
       }
-      router.push(`/orders/${data.id}`)
+      router.push(`/orders/${orderId}`)
       router.refresh()
     } catch (err: any) {
       setError(err.message)
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
       <nav className="flex items-center gap-1 text-sm text-muted-foreground" aria-label="Breadcrumb">
         <Link href="/orders" className="hover:text-foreground transition-colors">Orders</Link>
         <ChevronRight className="h-3.5 w-3.5" />
-        <span className="text-foreground font-medium">Create Order</span>
+        <Link href={`/orders/${orderId}`} className="hover:text-foreground transition-colors">{customerName || 'Order'}</Link>
+        <ChevronRight className="h-3.5 w-3.5" />
+        <span className="text-foreground font-medium">Edit</span>
       </nav>
 
-      <h1 className="text-xl font-semibold tracking-tight text-foreground">Create Order</h1>
+      <h1 className="text-xl font-semibold tracking-tight text-foreground">Edit Order</h1>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-            {/* Main form */}
             <div className="space-y-6">
-              {/* Order details */}
               <div className="rounded-lg border bg-card p-4 space-y-4">
                 <h2 className="text-sm font-medium text-foreground">Order Details</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -104,7 +140,6 @@ export default function NewOrderPage() {
                 </div>
               </div>
 
-              {/* Line items */}
               <div className="rounded-lg border bg-card p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-medium text-foreground">Line Items</h2>
@@ -114,7 +149,6 @@ export default function NewOrderPage() {
                   </Button>
                 </div>
 
-                {/* Header row */}
                 <div className="hidden sm:grid sm:grid-cols-[1fr_80px_120px_32px] gap-3 text-xs font-medium text-muted-foreground px-0.5">
                   <span>Description</span>
                   <span>Qty</span>
@@ -175,7 +209,6 @@ export default function NewOrderPage() {
               </div>
             </div>
 
-            {/* Order summary sidebar */}
             <div className="lg:sticky lg:top-6 h-fit">
               <div className="rounded-lg border bg-card p-4 space-y-3">
                 <h2 className="text-sm font-medium text-foreground">Order Summary</h2>
@@ -205,9 +238,9 @@ export default function NewOrderPage() {
               {form.formState.isSubmitting ? (
                 <>
                   <span className="mr-1.5 h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Creating…
+                  Saving…
                 </>
-              ) : 'Create Order'}
+              ) : 'Save Changes'}
             </Button>
           </div>
         </form>

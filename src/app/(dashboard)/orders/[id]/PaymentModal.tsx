@@ -7,11 +7,21 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { PaymentSchema, CreatePaymentInput } from '@/schemas/payments'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { formatCurrency } from '@/lib/utils'
+import { CreditCard } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-export function PaymentModal({ orderId, amountDue }: { orderId: string, amountDue: number }) {
+interface PaymentModalProps {
+  orderId: string
+  amountDue: number
+  orderTotal: number
+  amountPaidSoFar: number
+  variant?: 'default' | 'inline'
+}
+
+export function PaymentModal({ orderId, amountDue, orderTotal, amountPaidSoFar, variant = 'default' }: PaymentModalProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState('')
@@ -35,9 +45,7 @@ export function PaymentModal({ orderId, amountDue }: { orderId: string, amountDu
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
       })
-      
       const data = await res.json()
-      
       if (!res.ok) {
         if (data.error && data.error.details) {
           setDetails(data.error.details)
@@ -45,7 +53,6 @@ export function PaymentModal({ orderId, amountDue }: { orderId: string, amountDu
         }
         throw new Error(data.error || 'Payment failed')
       }
-
       setOpen(false)
       form.reset()
       router.refresh()
@@ -54,18 +61,43 @@ export function PaymentModal({ orderId, amountDue }: { orderId: string, amountDu
     }
   }
 
+  const triggerButton = variant === 'inline' ? (
+    <DialogTrigger className={cn(buttonVariants({ variant: 'default', size: 'sm' }), 'gap-1.5')}>
+      <CreditCard className="h-3.5 w-3.5" />
+      Record Payment
+    </DialogTrigger>
+  ) : (
+    <DialogTrigger className={cn(buttonVariants({ variant: 'default', size: 'default' }), 'gap-1.5')}>
+      <CreditCard className="h-4 w-4" />
+      Record Payment
+    </DialogTrigger>
+  )
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className={buttonVariants({ variant: 'default' })}>
-        Record Payment
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      {triggerButton}
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Record Payment</DialogTitle>
+          <DialogDescription>Record a payment against this order.</DialogDescription>
         </DialogHeader>
-        <div className="py-4 text-sm">
-          Remaining Balance: <span className="font-bold text-lg">{formatCurrency(amountDue)}</span>
+
+        {/* Financial context */}
+        <div className="grid grid-cols-3 gap-3 rounded-md border bg-muted/30 p-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Order Total</p>
+            <p className="mt-0.5 text-sm font-semibold tabular-nums">{formatCurrency(orderTotal)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Already Paid</p>
+            <p className="mt-0.5 text-sm font-semibold tabular-nums text-success">{formatCurrency(amountPaidSoFar)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Remaining</p>
+            <p className="mt-0.5 text-sm font-semibold tabular-nums text-destructive">{formatCurrency(amountDue)}</p>
+          </div>
         </div>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -75,8 +107,9 @@ export function PaymentModal({ orderId, amountDue }: { orderId: string, amountDu
                 <FormItem>
                   <FormLabel>Amount (cents)</FormLabel>
                   <FormControl>
-                    <Input type="number" min="1" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} />
+                    <Input type="number" min="1" max={amountDue} {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} />
                   </FormControl>
+                  <p className="text-xs text-muted-foreground">Maximum payment: {formatCurrency(amountDue)}</p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -88,10 +121,10 @@ export function PaymentModal({ orderId, amountDue }: { orderId: string, amountDu
                 <FormItem>
                   <FormLabel>Payment Date</FormLabel>
                   <FormControl>
-                    <Input type="datetime-local" {...field} onChange={e => {
+                    <Input type="date" {...field} onChange={e => {
                       const date = new Date(e.target.value)
                       field.onChange(date.toISOString())
-                    }} value={field.value ? new Date(field.value).toISOString().slice(0,16) : ''} />
+                    }} value={field.value ? new Date(field.value).toISOString().slice(0,10) : ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -102,34 +135,34 @@ export function PaymentModal({ orderId, amountDue }: { orderId: string, amountDu
               name="note"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Note (Optional)</FormLabel>
+                  <FormLabel>Note (optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Check #123" {...field} />
+                    <Input placeholder="e.g. Wire transfer #123" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             {error && (
-              <div className="text-sm text-red-500 font-medium">
-                {error}
+              <div className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
+                <p className="font-medium">{error}</p>
                 {details && (
-                  <div className="mt-1">
-                    Requested: {formatCurrency(details.requested)} <br/>
-                    Remaining: {formatCurrency(details.remaining)}
+                  <div className="mt-1 text-xs">
+                    <p>Requested: {formatCurrency(details.requested)}</p>
+                    <p>Maximum allowed: {formatCurrency(details.remaining)}</p>
                   </div>
                 )}
               </div>
             )}
 
-            <div className="pt-4 flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? (
                   <>
-                    <span className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                    Saving...
+                    <span className="mr-1.5 h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Saving…
                   </>
                 ) : 'Save Payment'}
               </Button>

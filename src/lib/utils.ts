@@ -5,6 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Re-export buttonVariants for convenience
+export { buttonVariants } from '@/components/ui/button'
+
 export function formatCurrency(amountInCents: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
