@@ -152,12 +152,51 @@ JWT_SECRET="your-super-secret-jwt-key"
 
 ## Deployment
 
-The application is optimized for deployment on modern edge/serverless platforms (e.g., Vercel) alongside a managed PostgreSQL database (e.g., Supabase or Neon).
+The application is optimized for deployment on Vercel with a managed PostgreSQL database (e.g., Neon or Supabase).
 
-1. Provision a PostgreSQL database and obtain the connection URI.
-2. Set `DATABASE_URL` and `JWT_SECRET` in the platform's Environment Variables settings.
-3. Add the build command: `npx prisma generate && next build`.
-4. Deploy the application.
+### Exact Deployment Steps
+
+#### 1. Creating/connecting production PostgreSQL
+- Provision a production PostgreSQL database (e.g. Neon, Supabase, or AWS RDS).
+- Obtain the connection URI (must include `postgresql://` and end with standard flags like `?sslmode=require`).
+
+#### 2. Setting environment variables
+- In your Vercel project settings, navigate to **Settings** > **Environment Variables**.
+- Add `DATABASE_URL` and paste your PostgreSQL connection URI.
+- Add `SESSION_SECRET` and generate a secure random string (e.g., run `openssl rand -base64 32` in your terminal).
+
+#### 3. Deploying
+- Connect your GitHub repository to Vercel.
+- The Build Command should be set to: `npx prisma generate && npm run build`.
+- The Output Directory should be `.next`.
+- Click **Deploy**.
+
+#### 4. Running Prisma migrations
+- Once the database is connected and before traffic flows, run the production migration against the DB:
+  ```bash
+  DATABASE_URL="your-production-url" npx prisma migrate deploy
+  ```
+- *Note: NEVER use `prisma migrate reset` or `prisma db push` on a production database.*
+
+#### 5. Seeding (Optional)
+- If this is a fresh environment intended for demo purposes, you can safely seed the database.
+- Run: `DATABASE_URL="your-production-url" npm run db:seed`
+- *Note: Do not seed a true live production database containing real user data.*
+
+#### 6. Verifying authentication
+- Navigate to your deployed URL.
+- Go to `/register` and sign up with a test email.
+- Verify you are securely redirected to `/dashboard`.
+- Verify clicking 'Sign Out' clears the secure `HttpOnly` cookie and redirects you back to `/login`.
+
+#### 7. Verifying API
+- From the Dashboard, create an order with multiple items.
+- Ensure the server correctly calculates the total (client-side totals are ignored for security).
+
+#### 8. Verifying payments
+- Navigate to the newly created order.
+- Record a partial payment and verify the outstanding balance reduces correctly.
+- Attempt to record an over-payment (exceeding the remaining balance) and verify it is rejected.
 
 *Live URL: [Deployment Pending]*
 
