@@ -3,5 +3,5 @@ import { clearSession } from '@/lib/session'
 
 export async function POST() {
   await clearSession()
-  return NextResponse.json({ success: true }, { status: 200 })
+  return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'))
 }

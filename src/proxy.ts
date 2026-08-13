@@ -4,7 +4,7 @@ import { decrypt } from '@/lib/session'
 
 export async function proxy(request: NextRequest) {
   // Define protected routes
-  const protectedPaths = ['/dashboard', '/api/orders', '/api/payments']
+  const protectedPaths = ['/dashboard', '/orders', '/api/orders', '/api/payments']
   const isProtectedPath = protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))
 
   if (isProtectedPath) {

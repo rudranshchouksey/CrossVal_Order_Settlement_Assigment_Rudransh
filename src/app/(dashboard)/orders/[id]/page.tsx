@@ -2,14 +2,14 @@ import { notFound } from 'next/navigation'
 import { requireAuth } from '@/lib/auth'
 import { getOrder } from '@/services/orders'
 import { calculateAmountPaid, calculateAmountDue, calculateOrderStatus } from '@/lib/calculations'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { EmptyState } from '@/components/EmptyState'
 import { PaymentModal } from './PaymentModal'
 import { DeleteOrderButton } from './DeleteOrderButton'
 import { CreditCard, ChevronRight, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
-import { cn, buttonVariants } from '@/lib/utils'
 
 export default async function OrderDetailsPage(props: { params: Promise<{ id: string }> }) {
   const user = await requireAuth()
