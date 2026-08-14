@@ -1,5 +1,7 @@
 # Orders and Settlements
 
+**🔗 Live Demo: [https://cross-val-order-settlement-assigmen.vercel.app/](https://cross-val-order-settlement-assigmen.vercel.app/)**
+
 ## Overview
 
 The Orders and Settlements application is a Full Stack B2B SaaS platform designed to safely manage customer orders, line items, and complex payment settlements. 
@@ -198,7 +200,7 @@ The application is optimized for deployment on Vercel with a managed PostgreSQL 
 - Record a partial payment and verify the outstanding balance reduces correctly.
 - Attempt to record an over-payment (exceeding the remaining balance) and verify it is rejected.
 
-*Live URL: [Deployment Pending]*
+*Live URL: [https://cross-val-order-settlement-assigmen.vercel.app/](https://cross-val-order-settlement-assigmen.vercel.app/)*
 
 ## Assumptions and Tradeoffs
 
